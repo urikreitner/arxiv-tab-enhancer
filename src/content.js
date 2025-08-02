@@ -47,21 +47,41 @@ class ArxivTitleExtractor {
 
     if (isAbsPage) {
       // Extract from abstract page
+      console.log('Looking for title element: h1.title');
       const titleElement = document.querySelector('h1.title');
       if (titleElement) {
+        console.log('Found title element:', titleElement);
+        console.log('Title raw text:', titleElement.textContent);
         title = titleElement.textContent.replace(/^Title:\s*/, '').trim();
+        console.log('Cleaned title:', title);
+      } else {
+        console.log('Title element not found with h1.title selector');
+        // Try alternative selectors
+        const altTitle = document.querySelector('h1.title.mathjax') || document.querySelector('h1');
+        if (altTitle) {
+          console.log('Found alternative title element:', altTitle);
+          title = altTitle.textContent.replace(/^Title:\s*/, '').trim();
+        }
       }
 
+      console.log('Looking for authors element: div.authors');
       const authorsElement = document.querySelector('div.authors');
       if (authorsElement) {
+        console.log('Found authors element:', authorsElement);
+        console.log('Authors raw text:', authorsElement.textContent);
         authors = authorsElement.textContent.replace(/^Authors:\s*/, '').trim();
-        console.log('Raw authors string:', authors);
+        console.log('Cleaned authors string:', authors);
         authorsList = this.parseAuthors(authors);
         firstAuthor = authorsList.length > 0 ? authorsList[0] : null;
         console.log('Parsed authors:', authorsList);
         console.log('First author:', firstAuthor);
       } else {
-        console.log('No authors element found');
+        console.log('No authors element found with div.authors selector');
+        // Check what elements are actually available
+        console.log('Available elements on page:');
+        console.log('- h1 elements:', document.querySelectorAll('h1'));
+        console.log('- div elements:', document.querySelectorAll('div').length);
+        console.log('- elements with "author" in class:', document.querySelectorAll('[class*="author"]'));
       }
 
       const subjectElement = document.querySelector('span.primary-subject');
@@ -260,10 +280,15 @@ class ArxivTitleExtractor {
 }
 
 // Initialize when DOM is ready
+console.log('ArXiv Tab Enhancer content script loaded on:', window.location.href);
+console.log('Document ready state:', document.readyState);
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM loaded, initializing ArxivTitleExtractor');
     new ArxivTitleExtractor();
   });
 } else {
+  console.log('DOM already ready, initializing ArxivTitleExtractor');
   new ArxivTitleExtractor();
 }
