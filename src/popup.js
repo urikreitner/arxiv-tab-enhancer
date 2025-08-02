@@ -58,7 +58,8 @@ class PopupManager {
     });
     
     document.addEventListener('click', (e) => {
-      if (!searchInput.contains(e.target) && !document.getElementById('author-list').contains(e.target)) {
+      const authorList = document.getElementById('author-list');
+      if (!searchInput.contains(e.target) && !authorList.contains(e.target)) {
         this.hideAuthorList();
       }
     });
@@ -147,6 +148,8 @@ class PopupManager {
       const allData = await chrome.storage.local.get(null);
       const arxivKeys = Object.keys(allData).filter(key => key.startsWith('arxiv_'));
       
+      console.log(`Found ${arxivKeys.length} cached ArXiv papers`);
+      
       // Count papers per author
       this.authors.clear();
       
@@ -161,6 +164,8 @@ class PopupManager {
           }
         }
       });
+      
+      console.log(`Found ${this.authors.size} unique authors`);
       
       // Sort authors by paper count (descending)
       this.filteredAuthors = Array.from(this.authors.entries())
@@ -227,8 +232,11 @@ class PopupManager {
   
   async filterTabsByAuthor(author) {
     try {
+      console.log(`Searching for tabs by author: ${author}`);
       const tabs = await chrome.tabs.query({ currentWindow: true });
       const arxivTabs = tabs.filter(tab => this.isArxivUrl(tab.url));
+      
+      console.log(`Found ${arxivTabs.length} ArXiv tabs in current window`);
       
       // Get cached data for each tab to check authors
       const allData = await chrome.storage.local.get(null);
@@ -239,11 +247,15 @@ class PopupManager {
         if (paperId) {
           const cacheKey = `arxiv_${paperId}`;
           const paperData = allData[cacheKey];
+          console.log(`Tab ${tab.id} (${paperId}): author = ${paperData?.firstAuthor}`);
+          
           if (paperData && paperData.firstAuthor === author) {
             matchingTabs.push(tab.id);
           }
         }
       }
+      
+      console.log(`Found ${matchingTabs.length} matching tabs for ${author}`);
       
       if (matchingTabs.length > 0) {
         // Highlight matching tabs by switching to first one

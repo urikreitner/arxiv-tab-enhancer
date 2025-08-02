@@ -14,11 +14,16 @@ class ArxivTitleExtractor {
   }
 
   extractPaperInfo() {
+    console.log('ArXiv Tab Enhancer: Extracting paper info from', window.location.href);
     const paperData = this.getPaperData();
+    console.log('Extracted paper data:', paperData);
+    
     if (paperData && paperData.title) {
       this.paperData = paperData;
       this.updateTabTitle(paperData);
       this.cacheData(paperData);
+    } else {
+      console.log('No valid paper data found');
     }
   }
 
@@ -50,8 +55,13 @@ class ArxivTitleExtractor {
       const authorsElement = document.querySelector('div.authors');
       if (authorsElement) {
         authors = authorsElement.textContent.replace(/^Authors:\s*/, '').trim();
+        console.log('Raw authors string:', authors);
         authorsList = this.parseAuthors(authors);
         firstAuthor = authorsList.length > 0 ? authorsList[0] : null;
+        console.log('Parsed authors:', authorsList);
+        console.log('First author:', firstAuthor);
+      } else {
+        console.log('No authors element found');
       }
 
       const subjectElement = document.querySelector('span.primary-subject');
@@ -135,11 +145,13 @@ class ArxivTitleExtractor {
 
   updateTabTitle(paperData) {
     let newTitle = paperData.title;
+    console.log('Building title for:', paperData.title);
     
     // Add first author if available
     if (paperData.firstAuthor) {
       const authorShort = this.getShortAuthorName(paperData.firstAuthor);
       newTitle = `${authorShort}: ${newTitle}`;
+      console.log('Added author to title:', authorShort);
     }
     
     // Truncate long titles
@@ -155,6 +167,10 @@ class ArxivTitleExtractor {
 
     // Generate author color
     const authorColor = this.generateAuthorColor(paperData.firstAuthor);
+    console.log('Generated author color:', authorColor);
+
+    console.log('Final title:', newTitle);
+    console.log('Sending message to background script');
 
     // Send message to background script to update tab title and apply colors/grouping
     if (newTitle && chrome.runtime) {
@@ -164,6 +180,8 @@ class ArxivTitleExtractor {
         paperData: paperData,
         authorColor: authorColor
       });
+    } else {
+      console.error('Cannot send message - no title or chrome.runtime unavailable');
     }
   }
 

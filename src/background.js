@@ -46,22 +46,29 @@ class ArxivBackgroundManager {
 
   async updateTabTitle(tabId, newTitle, paperData, authorColor) {
     try {
+      console.log(`updateTabTitle called for tab ${tabId}: ${newTitle}`);
+      console.log(`Paper data:`, paperData);
+      
       // Update the tab title
       await chrome.tabs.update(tabId, { title: newTitle });
       
       // Cache the paper data
       if (paperData && paperData.id) {
-        this.cacheData(paperData);
+        await this.cacheData(paperData);
       }
       
       // Apply author-based grouping and colors
       if (paperData && paperData.firstAuthor) {
+        console.log(`Attempting to group tab ${tabId} by author: ${paperData.firstAuthor}`);
         await this.manageAuthorGrouping(tabId, paperData, authorColor);
+      } else {
+        console.log(`No firstAuthor found for tab ${tabId}`);
       }
       
-      console.log(`Updated tab ${tabId} title to: ${newTitle}`);
+      console.log(`Successfully updated tab ${tabId} title to: ${newTitle}`);
     } catch (error) {
       console.error('Failed to update tab title:', error);
+      console.error('Error details:', error.message);
     }
   }
 
@@ -219,7 +226,12 @@ class ArxivBackgroundManager {
   async manageAuthorGrouping(tabId, paperData, authorColor) {
     try {
       const author = paperData.firstAuthor;
-      if (!author) return;
+      console.log(`manageAuthorGrouping called for tab ${tabId}, author: ${author}`);
+      
+      if (!author) {
+        console.log(`No author found for tab ${tabId}`);
+        return;
+      }
       
       // Store tab-author mapping
       this.tabAuthors.set(tabId, author);
@@ -232,7 +244,9 @@ class ArxivBackgroundManager {
         const shortAuthor = this.getShortAuthorName(author);
         const color = this.getTabGroupColor(authorColor?.hue || 0);
         
-        groupId = await chrome.tabGroups.group({
+        console.log(`Creating new group for ${author} (${shortAuthor}) with color ${color}`);
+        
+        groupId = await chrome.tabs.group({
           tabIds: [tabId]
         });
         
@@ -242,24 +256,26 @@ class ArxivBackgroundManager {
         });
         
         this.authorGroups.set(author, groupId);
-        console.log(`Created new group for ${author}: ${groupId}`);
+        console.log(`Created new group ${groupId} for ${author}`);
       } else {
         // Add tab to existing group
         try {
-          await chrome.tabGroups.group({
+          console.log(`Adding tab ${tabId} to existing group ${groupId} for ${author}`);
+          await chrome.tabs.group({
             groupId: groupId,
             tabIds: [tabId]
           });
-          console.log(`Added tab ${tabId} to existing group for ${author}`);
+          console.log(`Successfully added tab ${tabId} to group ${groupId}`);
         } catch (error) {
           // Group might not exist anymore, create new one
-          console.log('Group no longer exists, creating new one');
+          console.log(`Group ${groupId} no longer exists, creating new one for ${author}`);
           this.authorGroups.delete(author);
           await this.manageAuthorGrouping(tabId, paperData, authorColor);
         }
       }
     } catch (error) {
       console.error('Failed to manage author grouping:', error);
+      console.error('Error details:', error.message);
     }
   }
   
