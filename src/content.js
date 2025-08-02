@@ -13,9 +13,9 @@ class ArxivTitleExtractor {
     this.observeChanges();
   }
 
-  extractPaperInfo() {
+  async extractPaperInfo() {
     console.log('ArXiv Tab Enhancer: Extracting paper info from', window.location.href);
-    const paperData = this.getPaperData();
+    const paperData = await this.getPaperData();
     console.log('Extracted paper data:', paperData);
     
     if (paperData && paperData.title) {
@@ -27,7 +27,7 @@ class ArxivTitleExtractor {
     }
   }
 
-  getPaperData() {
+  async getPaperData() {
     // Check if we're on an abs page or PDF page
     const url = window.location.href;
     const isAbsPage = url.includes('/abs/');
@@ -92,7 +92,7 @@ class ArxivTitleExtractor {
       console.log('PDF page detected, checking cache or fetching from abstract page');
       
       // Try to get cached data first
-      const cached = this.getCachedData(paperId);
+      const cached = await this.getCachedDataAsync(paperId);
       if (cached && cached.title) {
         console.log('Found cached data for PDF page:', cached);
         title = cached.title;
@@ -101,11 +101,19 @@ class ArxivTitleExtractor {
         firstAuthor = cached.firstAuthor;
         category = cached.category;
       } else {
-        console.log('No cached data, will fetch from abstract page');
+        console.log('No cached data, fetching from abstract page');
         // PDF pages don't have metadata, so we need to fetch from abstract page
-        this.fetchAbstractPageData(paperId);
-        // For now, use temporary title until we get the real data
-        title = `ArXiv ${paperId}`;
+        const fetchedData = await this.fetchAbstractPageData(paperId);
+        if (fetchedData) {
+          title = fetchedData.title;
+          authors = fetchedData.authors;
+          authorsList = fetchedData.authorsList || [];
+          firstAuthor = fetchedData.firstAuthor;
+          category = fetchedData.category;
+        } else {
+          // Fallback if fetch fails
+          title = `ArXiv ${paperId}`;
+        }
       }
     }
 
@@ -244,9 +252,49 @@ class ArxivTitleExtractor {
     }
   }
 
+  async cacheDataAsync(paperData) {
+    try {
+      const cacheKey = `arxiv_${paperData.id}`;
+      await chrome.storage.local.set({
+        [cacheKey]: {
+          ...paperData,
+          timestamp: Date.now()
+        }
+      });
+      console.log('Cached paper data for', paperData.id);
+    } catch (error) {
+      console.error('Failed to cache data:', error);
+    }
+  }
+
   getCachedData(paperId) {
     // This would be async in real implementation, but for simplicity we'll handle it in background
     return null;
+  }
+
+  async getCachedDataAsync(paperId) {
+    try {
+      const cacheKey = `arxiv_${paperId}`;
+      const result = await chrome.storage.local.get(cacheKey);
+      
+      if (result[cacheKey]) {
+        const data = result[cacheKey];
+        // Check if cache is not too old (30 days)
+        const maxAge = 30 * 24 * 60 * 60 * 1000;
+        if (Date.now() - data.timestamp < maxAge) {
+          console.log('Retrieved cached data for', paperId, data);
+          return data;
+        } else {
+          // Remove expired cache
+          await chrome.storage.local.remove(cacheKey);
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to get cached data:', error);
+      return null;
+    }
   }
 
   async fetchAbstractPageData(paperId) {
@@ -304,16 +352,17 @@ class ArxivTitleExtractor {
         };
         
         // Cache it
-        this.cacheData(paperData);
+        await this.cacheDataAsync(paperData);
         
-        // Update the tab title with the real data
-        this.updateTabTitle(paperData);
+        return paperData;
       } else {
         console.log('Failed to extract complete data from abstract page');
+        return null;
       }
       
     } catch (error) {
       console.error('Error fetching abstract page data:', error);
+      return null;
     }
   }
 
