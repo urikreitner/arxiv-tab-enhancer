@@ -9,11 +9,15 @@ When browsing ArXiv papers, all tabs show generic titles like "2501.00123" makin
 ## Features
 
 - **Automatic Title Replacement**: Extracts paper titles from ArXiv pages and updates tab titles
+- **Author-Based Organization**: Shows first author names in tab titles for easy identification
+- **Smart Tab Grouping**: Automatically groups papers by the same author using Chrome's Tab Groups
+- **Author-Based Colors**: Consistent color coding for papers by the same author
+- **Author Search**: Search and filter through cached papers by author name
 - **Smart Truncation**: Long titles are intelligently shortened to fit in browser tabs  
 - **Category Prefixes**: Adds subject category indicators (e.g., "[cs]" for computer science papers)
 - **Caching**: Stores paper metadata for faster subsequent loads
 - **Support for Multiple Formats**: Works with both `/abs/` and `/pdf/` ArXiv URLs
-- **Clean UI**: Simple popup with extension stats and controls
+- **Enhanced UI**: Popup with stats, author search, and grouping controls
 
 ## Installation
 
@@ -40,24 +44,33 @@ When browsing ArXiv papers, all tabs show generic titles like "2501.00123" makin
 ## Usage
 
 1. **Automatic Operation**: Once installed, the extension automatically works on ArXiv pages
-2. **Manual Refresh**: Click the extension icon and use "Refresh Current Tab" to force an update
-3. **Clear Cache**: Use the popup to clear stored paper data if needed
-4. **View Stats**: The popup shows how many papers are cached
+2. **Tab Grouping**: Papers by the same author are automatically grouped with consistent colors
+3. **Author Search**: Use the search box in the popup to find papers by specific authors
+4. **Manual Refresh**: Click "Refresh Current Tab" to force an update
+5. **Group All Tabs**: Use "Group All ArXiv Tabs" to organize all open ArXiv papers
+6. **View Stats**: The popup shows cached papers, memory usage, and active author groups
+7. **Clear Cache**: Clear stored paper data when needed
 
 ## How It Works
 
 1. **Content Script**: Detects ArXiv pages and extracts paper metadata (title, authors, category)
-2. **Background Script**: Receives metadata and updates the browser tab title
-3. **Caching System**: Stores paper data locally for faster future access
-4. **Smart Formatting**: Truncates long titles and adds category prefixes
+2. **Author Processing**: Parses author lists and identifies the first author for organization
+3. **Color Generation**: Creates consistent colors for each author using hash-based algorithm
+4. **Tab Grouping**: Uses Chrome's Tab Groups API to organize papers by author
+5. **Background Script**: Manages tab titles, grouping, and caching
+6. **Smart Formatting**: Truncates long titles and adds author names and category prefixes
 
 ## Examples
 
 **Before**: `2501.00123 - arXiv.org`  
-**After**: `[cs] Attention Is All You Need: A Survey of Transformer...`
+**After**: `[cs] Vaswani: Attention Is All You Need: A Survey of Transformer...`  
+*📁 Grouped in "Vaswani" tab group with blue color*
 
 **Before**: `2412.98765 - arXiv.org`  
-**After**: `[math] On the Convergence of Stochastic Gradient Descent...`
+**After**: `[math] Smith: On the Convergence of Stochastic Gradient Descent...`  
+*📁 Grouped in "Smith" tab group with green color*
+
+**Author Search**: Type "Vaswani" in the popup to quickly find and navigate to all papers by that author across your open tabs.
 
 ## Development
 
@@ -129,7 +142,8 @@ This extension:
 ## Permissions
 
 The extension requires these permissions:
-- `tabs`: To update tab titles
+- `tabs`: To update tab titles and query open tabs
+- `tabGroups`: To create and manage tab groups by author
 - `activeTab`: To access the current ArXiv page content
 - `storage`: To cache paper metadata locally
 - `host_permissions` for `arxiv.org`: To run on ArXiv pages only
@@ -139,6 +153,14 @@ The extension requires these permissions:
 MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Changelog
+
+### v1.1.0 (2025-02-02)
+- Added author-based tab grouping with Chrome Tab Groups API
+- Implemented consistent color coding for papers by the same author
+- Added author search and filtering in popup interface
+- Enhanced tab titles to include first author names
+- Improved popup UI with author statistics and grouping controls
+- Added automatic cleanup of empty tab groups
 
 ### v1.0.0 (2025-02-01)
 - Initial release

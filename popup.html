@@ -119,6 +119,72 @@
     .footer a:hover {
       text-decoration: underline;
     }
+    
+    .search-section {
+      margin-bottom: 16px;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    
+    .search-input:focus {
+      outline: none;
+      border-color: #4f46e5;
+      box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+    }
+    
+    .author-list {
+      max-height: 120px;
+      overflow-y: auto;
+      border: 1px solid #eee;
+      border-radius: 6px;
+      margin-top: 8px;
+    }
+    
+    .author-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .author-item:last-child {
+      border-bottom: none;
+    }
+    
+    .author-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .author-name {
+      font-weight: 500;
+      flex: 1;
+    }
+    
+    .paper-count {
+      background: #e9ecef;
+      color: #495057;
+      padding: 2px 6px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .no-results {
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      padding: 16px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -140,16 +206,25 @@
       <span class="stat-label">Memory cache:</span>
       <span class="stat-value" id="memory-count">-</span>
     </div>
+    <div class="stat-item">
+      <span class="stat-label">Author groups:</span>
+      <span class="stat-value" id="groups-count">-</span>
+    </div>
+  </div>
+  
+  <div class="search-section">
+    <input type="text" id="author-search" class="search-input" placeholder="Search authors...">
+    <div id="author-list" class="author-list" style="display: none;"></div>
   </div>
   
   <div class="actions">
     <button class="btn" id="refresh-btn">Refresh Current Tab</button>
+    <button class="btn" id="group-by-author-btn">Group All ArXiv Tabs</button>
     <button class="btn" id="clear-cache-btn">Clear Cache</button>
-    <button class="btn" id="options-btn">Extension Options</button>
   </div>
   
   <div class="footer">
-    <a href="https://github.com/yourusername/arxiv-tab-enhancer" target="_blank">
+    <a href="https://github.com/urikreitner/arxiv-tab-enhancer" target="_blank">
       View on GitHub
     </a>
   </div>

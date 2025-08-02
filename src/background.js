@@ -6,12 +6,20 @@ class ArxivBackgroundManager {
     this.setupMessageListener();
     this.setupTabListeners();
     this.paperCache = new Map();
+    this.authorGroups = new Map(); // Track tab groups by author
+    this.tabAuthors = new Map(); // Track author by tab ID
   }
 
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'updateTabTitle') {
-        this.updateTabTitle(sender.tab.id, message.title, message.paperData);
+        this.updateTabTitle(sender.tab.id, message.title, message.paperData, message.authorColor);
+      } else if (message.action === 'getStats') {
+        this.getStats().then(stats => sendResponse(stats));
+        return true; // Keep message channel open for async response
+      } else if (message.action === 'clearMemoryCache') {
+        this.paperCache.clear();
+        sendResponse({ success: true });
       }
       return true;
     });
@@ -29,9 +37,14 @@ class ArxivBackgroundManager {
     chrome.tabs.onActivated.addListener((activeInfo) => {
       this.handleTabActivation(activeInfo.tabId);
     });
+    
+    // Listen for tab removal to clean up groups
+    chrome.tabs.onRemoved.addListener((tabId, removeInfo) => {
+      this.handleTabRemoval(tabId);
+    });
   }
 
-  async updateTabTitle(tabId, newTitle, paperData) {
+  async updateTabTitle(tabId, newTitle, paperData, authorColor) {
     try {
       // Update the tab title
       await chrome.tabs.update(tabId, { title: newTitle });
@@ -39,6 +52,11 @@ class ArxivBackgroundManager {
       // Cache the paper data
       if (paperData && paperData.id) {
         this.cacheData(paperData);
+      }
+      
+      // Apply author-based grouping and colors
+      if (paperData && paperData.firstAuthor) {
+        await this.manageAuthorGrouping(tabId, paperData, authorColor);
       }
       
       console.log(`Updated tab ${tabId} title to: ${newTitle}`);
@@ -80,6 +98,32 @@ class ArxivBackgroundManager {
       }
     } catch (error) {
       // Tab might not exist anymore
+    }
+  }
+  
+  async handleTabRemoval(tabId) {
+    // Clean up author mapping when tab is removed
+    const author = this.tabAuthors.get(tabId);
+    if (author) {
+      this.tabAuthors.delete(tabId);
+      
+      // Check if this was the last tab for this author's group
+      const groupId = this.authorGroups.get(author);
+      if (groupId) {
+        try {
+          const group = await chrome.tabGroups.get(groupId);
+          const tabs = await chrome.tabs.query({ groupId: groupId });
+          
+          // If no more tabs in the group, clean up
+          if (tabs.length === 0) {
+            this.authorGroups.delete(author);
+            console.log(`Cleaned up empty group for ${author}`);
+          }
+        } catch (error) {
+          // Group might already be gone
+          this.authorGroups.delete(author);
+        }
+      }
     }
   }
 
@@ -172,6 +216,78 @@ class ArxivBackgroundManager {
     }
   }
 
+  async manageAuthorGrouping(tabId, paperData, authorColor) {
+    try {
+      const author = paperData.firstAuthor;
+      if (!author) return;
+      
+      // Store tab-author mapping
+      this.tabAuthors.set(tabId, author);
+      
+      // Check if we already have a group for this author
+      let groupId = this.authorGroups.get(author);
+      
+      if (!groupId) {
+        // Create new tab group for this author
+        const shortAuthor = this.getShortAuthorName(author);
+        const color = this.getTabGroupColor(authorColor?.hue || 0);
+        
+        groupId = await chrome.tabGroups.group({
+          tabIds: [tabId]
+        });
+        
+        await chrome.tabGroups.update(groupId, {
+          title: shortAuthor,
+          color: color
+        });
+        
+        this.authorGroups.set(author, groupId);
+        console.log(`Created new group for ${author}: ${groupId}`);
+      } else {
+        // Add tab to existing group
+        try {
+          await chrome.tabGroups.group({
+            groupId: groupId,
+            tabIds: [tabId]
+          });
+          console.log(`Added tab ${tabId} to existing group for ${author}`);
+        } catch (error) {
+          // Group might not exist anymore, create new one
+          console.log('Group no longer exists, creating new one');
+          this.authorGroups.delete(author);
+          await this.manageAuthorGrouping(tabId, paperData, authorColor);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to manage author grouping:', error);
+    }
+  }
+  
+  getShortAuthorName(fullName) {
+    if (!fullName) return 'Unknown';
+    
+    const parts = fullName.split(' ').filter(part => part.length > 0);
+    
+    if (parts.length === 1) {
+      return parts[0];
+    } else if (parts.length === 2) {
+      return parts[1]; // Last name
+    } else {
+      if (fullName.includes(',')) {
+        return parts[0].replace(',', '');
+      } else {
+        return parts[parts.length - 1];
+      }
+    }
+  }
+  
+  getTabGroupColor(hue) {
+    // Map hue ranges to Chrome's available tab group colors
+    const colors = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan'];
+    const colorIndex = Math.floor((hue / 360) * colors.length);
+    return colors[colorIndex % colors.length];
+  }
+  
   // Utility method to get extension stats
   async getStats() {
     try {
@@ -180,10 +296,11 @@ class ArxivBackgroundManager {
       
       return {
         cachedPapers: arxivKeys.length,
-        memoryCache: this.paperCache.size
+        memoryCache: this.paperCache.size,
+        authorGroups: this.authorGroups.size
       };
     } catch (error) {
-      return { cachedPapers: 0, memoryCache: 0 };
+      return { cachedPapers: 0, memoryCache: 0, authorGroups: 0 };
     }
   }
 }
