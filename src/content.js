@@ -89,18 +89,23 @@ class ArxivTitleExtractor {
         category = subjectElement.textContent.trim();
       }
     } else if (isPdfPage) {
-      // For PDF pages, try to get title from the document title or extract from URL
-      // PDF pages often don't have structured metadata, so we'll use the paper ID
-      title = `ArXiv ${paperId}`;
+      console.log('PDF page detected, checking cache or fetching from abstract page');
       
-      // Try to get cached data if we've seen this paper before
+      // Try to get cached data first
       const cached = this.getCachedData(paperId);
       if (cached && cached.title) {
+        console.log('Found cached data for PDF page:', cached);
         title = cached.title;
         authors = cached.authors;
         authorsList = cached.authorsList || [];
         firstAuthor = cached.firstAuthor;
         category = cached.category;
+      } else {
+        console.log('No cached data, will fetch from abstract page');
+        // PDF pages don't have metadata, so we need to fetch from abstract page
+        this.fetchAbstractPageData(paperId);
+        // For now, use temporary title until we get the real data
+        title = `ArXiv ${paperId}`;
       }
     }
 
@@ -242,6 +247,74 @@ class ArxivTitleExtractor {
   getCachedData(paperId) {
     // This would be async in real implementation, but for simplicity we'll handle it in background
     return null;
+  }
+
+  async fetchAbstractPageData(paperId) {
+    try {
+      console.log(`Fetching abstract page data for ${paperId}`);
+      const abstractUrl = `https://arxiv.org/abs/${paperId}`;
+      
+      // Fetch the abstract page HTML
+      const response = await fetch(abstractUrl);
+      if (!response.ok) {
+        console.error('Failed to fetch abstract page:', response.status);
+        return;
+      }
+      
+      const html = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // Extract data from the abstract page
+      let title = null;
+      let authors = null;
+      let authorsList = [];
+      let firstAuthor = null;
+      let category = null;
+      
+      const titleElement = doc.querySelector('h1.title');
+      if (titleElement) {
+        title = titleElement.textContent.replace(/^Title:\s*/, '').trim();
+      }
+      
+      const authorsElement = doc.querySelector('div.authors');
+      if (authorsElement) {
+        authors = authorsElement.textContent.replace(/^Authors:\s*/, '').trim();
+        authorsList = this.parseAuthors(authors);
+        firstAuthor = authorsList.length > 0 ? authorsList[0] : null;
+      }
+      
+      const subjectElement = doc.querySelector('span.primary-subject');
+      if (subjectElement) {
+        category = subjectElement.textContent.trim();
+      }
+      
+      if (title && firstAuthor) {
+        console.log(`Successfully fetched data: ${title} by ${firstAuthor}`);
+        
+        // Create paper data object
+        const paperData = {
+          id: paperId,
+          title: title,
+          authors: authors,
+          authorsList: authorsList,
+          firstAuthor: firstAuthor,
+          category: category,
+          url: window.location.href
+        };
+        
+        // Cache it
+        this.cacheData(paperData);
+        
+        // Update the tab title with the real data
+        this.updateTabTitle(paperData);
+      } else {
+        console.log('Failed to extract complete data from abstract page');
+      }
+      
+    } catch (error) {
+      console.error('Error fetching abstract page data:', error);
+    }
   }
 
   observeChanges() {

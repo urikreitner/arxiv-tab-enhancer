@@ -13,7 +13,10 @@ class ArxivBackgroundManager {
   setupMessageListener() {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (message.action === 'updateTabTitle') {
-        this.updateTabTitle(sender.tab.id, message.title, message.paperData, message.authorColor);
+        this.updateTabTitle(sender.tab.id, message.title, message.paperData, message.authorColor)
+          .then(() => sendResponse({ success: true }))
+          .catch(error => sendResponse({ error: error.message }));
+        return true; // Keep message channel open for async response
       } else if (message.action === 'getStats') {
         this.getStats().then(stats => sendResponse(stats));
         return true; // Keep message channel open for async response
@@ -21,7 +24,7 @@ class ArxivBackgroundManager {
         this.paperCache.clear();
         sendResponse({ success: true });
       }
-      return true;
+      return false; // Don't keep channel open for other messages
     });
   }
 
