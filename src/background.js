@@ -285,7 +285,8 @@ class ArxivBackgroundManager {
         
         await chrome.tabGroups.update(groupId, {
           title: shortAuthor,
-          color: color
+          color: color,
+          collapsed: true
         });
         
         this.authorGroups.set(author, groupId);
