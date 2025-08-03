@@ -93,14 +93,19 @@ class ArxivTitleExtractor {
       
       // Try to get cached data first
       const cached = await this.getCachedDataAsync(paperId);
-      if (cached && cached.title) {
-        console.log('Found cached data for PDF page:', cached);
+      if (cached && cached.title && cached.firstAuthor) {
+        console.log('Found valid cached data for PDF page:', cached);
         title = cached.title;
         authors = cached.authors;
         authorsList = cached.authorsList || [];
         firstAuthor = cached.firstAuthor;
         category = cached.category;
       } else {
+        if (cached && !cached.firstAuthor) {
+          console.log('Found incomplete cached data, will re-fetch:', cached);
+          // Remove bad cache entry
+          await this.removeCachedData(paperId);
+        }
         console.log('No cached data, fetching from abstract page');
         // PDF pages don't have metadata, so we need to fetch from abstract page
         const fetchedData = await this.fetchAbstractPageData(paperId);
@@ -294,6 +299,16 @@ class ArxivTitleExtractor {
     } catch (error) {
       console.error('Failed to get cached data:', error);
       return null;
+    }
+  }
+
+  async removeCachedData(paperId) {
+    try {
+      const cacheKey = `arxiv_${paperId}`;
+      await chrome.storage.local.remove(cacheKey);
+      console.log('Removed cached data for', paperId);
+    } catch (error) {
+      console.error('Failed to remove cached data:', error);
     }
   }
 
