@@ -4,12 +4,14 @@ class PopupManager {
   constructor() {
     this.authors = new Map(); // Store author data
     this.filteredAuthors = [];
+    this.likedAuthors = []; // Store liked authors list
     this.init();
   }
 
   async init() {
     await this.loadStats();
     await this.loadAuthors();
+    await this.loadLikedAuthors();
     this.setupEventListeners();
     this.checkCurrentTab();
   }
@@ -45,6 +47,17 @@ class PopupManager {
     // Clear cache button
     document.getElementById('clear-cache-btn').addEventListener('click', () => {
       this.clearCache();
+    });
+
+    // Liked authors functionality
+    document.getElementById('add-author-btn').addEventListener('click', () => {
+      this.addLikedAuthor();
+    });
+    
+    document.getElementById('add-author-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        this.addLikedAuthor();
+      }
     });
 
     // Author search input
@@ -313,6 +326,83 @@ class PopupManager {
   extractPaperId(url) {
     const match = url.match(/\/(?:abs|pdf)\/([^/?]+)/);
     return match ? match[1] : null;
+  }
+
+  async loadLikedAuthors() {
+    try {
+      const result = await chrome.storage.local.get('likedAuthors');
+      this.likedAuthors = result.likedAuthors || [];
+      this.updateLikedAuthorsDisplay();
+    } catch (error) {
+      console.error('Failed to load liked authors:', error);
+      this.likedAuthors = [];
+    }
+  }
+
+  async addLikedAuthor() {
+    const input = document.getElementById('add-author-input');
+    const authorName = input.value.trim();
+    
+    if (!authorName) return;
+    
+    // Check if author already exists
+    if (this.likedAuthors.includes(authorName)) {
+      alert('Author already in liked list');
+      return;
+    }
+    
+    try {
+      this.likedAuthors.push(authorName);
+      await chrome.storage.local.set({ likedAuthors: this.likedAuthors });
+      
+      input.value = '';
+      this.updateLikedAuthorsDisplay();
+      
+      console.log('Added liked author:', authorName);
+    } catch (error) {
+      console.error('Failed to add liked author:', error);
+      alert('Failed to add author');
+    }
+  }
+
+  async removeLikedAuthor(authorName) {
+    try {
+      this.likedAuthors = this.likedAuthors.filter(author => author !== authorName);
+      await chrome.storage.local.set({ likedAuthors: this.likedAuthors });
+      
+      this.updateLikedAuthorsDisplay();
+      
+      console.log('Removed liked author:', authorName);
+    } catch (error) {
+      console.error('Failed to remove liked author:', error);
+    }
+  }
+
+  updateLikedAuthorsDisplay() {
+    const container = document.getElementById('liked-authors-list');
+    
+    if (this.likedAuthors.length === 0) {
+      container.innerHTML = '<div style="color: #666; font-size: 11px; font-style: italic;">No liked authors yet. Add authors to prioritize them for grouping.</div>';
+      return;
+    }
+    
+    const html = this.likedAuthors.map(author => 
+      `<span class="liked-author-tag">
+        ${author}
+        <span class="remove-author" data-author="${author}">×</span>
+      </span>`
+    ).join('');
+    
+    container.innerHTML = html;
+    
+    // Add click listeners for remove buttons
+    container.querySelectorAll('.remove-author').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const author = btn.dataset.author;
+        this.removeLikedAuthor(author);
+      });
+    });
   }
 
   isArxivUrl(url) {

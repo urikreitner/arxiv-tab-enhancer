@@ -72,9 +72,9 @@ class ArxivTitleExtractor {
         authors = authorsElement.textContent.replace(/^Authors:\s*/, '').trim();
         console.log('Cleaned authors string:', authors);
         authorsList = this.parseAuthors(authors);
-        firstAuthor = authorsList.length > 0 ? authorsList[0] : null;
+        firstAuthor = await this.getPreferredAuthor(authorsList);
         console.log('Parsed authors:', authorsList);
-        console.log('First author:', firstAuthor);
+        console.log('Preferred author for grouping:', firstAuthor);
       } else {
         console.log('No authors element found with div.authors selector');
         // Check what elements are actually available
@@ -155,6 +155,53 @@ class ArxivTitleExtractor {
       .filter(author => author.length > 0);
     
     return authors;
+  }
+
+  async getPreferredAuthor(authorsList) {
+    if (!authorsList || authorsList.length === 0) return null;
+    
+    try {
+      // Get liked authors from storage
+      const likedAuthors = await this.getLikedAuthors();
+      
+      // Check if any liked author is in the authors list
+      for (const likedAuthor of likedAuthors) {
+        for (const author of authorsList) {
+          if (this.isAuthorMatch(author, likedAuthor)) {
+            console.log(`Found liked author: ${author} (matches ${likedAuthor})`);
+            return author;
+          }
+        }
+      }
+      
+      // If no liked author found, return first author
+      return authorsList[0];
+    } catch (error) {
+      console.error('Error getting preferred author:', error);
+      return authorsList[0]; // Fallback to first author
+    }
+  }
+
+  async getLikedAuthors() {
+    try {
+      const result = await chrome.storage.local.get('likedAuthors');
+      return result.likedAuthors || [];
+    } catch (error) {
+      console.error('Error getting liked authors:', error);
+      return [];
+    }
+  }
+
+  isAuthorMatch(fullAuthorName, likedAuthorName) {
+    // Normalize both names for comparison
+    const normalize = (name) => name.toLowerCase().replace(/[.,]/g, '').trim();
+    
+    const fullNorm = normalize(fullAuthorName);
+    const likedNorm = normalize(likedAuthorName);
+    
+    // Check if liked author name is contained in full author name
+    // This handles cases like "Smith" matching "John Smith" or "Smith, J."
+    return fullNorm.includes(likedNorm) || likedNorm.includes(fullNorm);
   }
 
   // Generate consistent color from author name using simple hash
@@ -364,7 +411,7 @@ class ArxivTitleExtractor {
       if (authorsElement) {
         authors = authorsElement.textContent.replace(/^Authors:\s*/, '').trim();
         authorsList = this.parseAuthors(authors);
-        firstAuthor = authorsList.length > 0 ? authorsList[0] : null;
+        firstAuthor = await this.getPreferredAuthor(authorsList);
       }
       
       const subjectElement = doc.querySelector('span.primary-subject');
