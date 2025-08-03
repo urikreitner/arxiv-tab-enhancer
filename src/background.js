@@ -325,7 +325,9 @@ class ArxivBackgroundManager {
 }
 
 // Initialize the background manager
+console.log('ArXiv Tab Enhancer: Background script starting...');
 const arxivManager = new ArxivBackgroundManager();
+console.log('ArXiv Tab Enhancer: Background manager initialized');
 
 // Handle extension lifecycle
 chrome.runtime.onInstalled.addListener((details) => {

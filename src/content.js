@@ -199,7 +199,16 @@ class ArxivTitleExtractor {
 
     // Add category prefix if available
     if (paperData.category) {
-      const categoryShort = paperData.category.split('.')[0]; // e.g., "cs" from "cs.AI"
+      // Extract short category: "cs.AI" -> "cs", "Computation and Language (cs.CL)" -> "cs"
+      let categoryShort = paperData.category;
+      if (categoryShort.includes('(') && categoryShort.includes(')')) {
+        // Extract from parentheses: "Computation and Language (cs.CL)" -> "cs.CL"
+        const match = categoryShort.match(/\(([^)]+)\)/);
+        if (match) {
+          categoryShort = match[1];
+        }
+      }
+      categoryShort = categoryShort.split('.')[0]; // "cs.CL" -> "cs"
       newTitle = `[${categoryShort}] ${newTitle}`;
     }
 
@@ -217,6 +226,12 @@ class ArxivTitleExtractor {
         title: newTitle,
         paperData: paperData,
         authorColor: authorColor
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Message sending failed:', chrome.runtime.lastError);
+        } else {
+          console.log('Message sent successfully, response:', response);
+        }
       });
     } else {
       console.error('Cannot send message - no title or chrome.runtime unavailable');
