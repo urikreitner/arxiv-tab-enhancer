@@ -217,12 +217,17 @@ class ArxivTitleExtractor {
     console.log('Generated author color:', authorColor);
 
     console.log('Final title:', newTitle);
-    console.log('Sending message to background script');
+    
+    // Update the document title directly (this changes the browser tab title)
+    document.title = newTitle;
+    console.log('Updated document title to:', newTitle);
 
-    // Send message to background script to update tab title and apply colors/grouping
+    console.log('Sending message to background script for grouping');
+
+    // Send message to background script to apply colors/grouping (not title update)
     if (newTitle && chrome.runtime) {
       chrome.runtime.sendMessage({
-        action: 'updateTabTitle',
+        action: 'createAuthorGroup',
         title: newTitle,
         paperData: paperData,
         authorColor: authorColor

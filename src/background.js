@@ -17,6 +17,11 @@ class ArxivBackgroundManager {
           .then(() => sendResponse({ success: true }))
           .catch(error => sendResponse({ error: error.message }));
         return true; // Keep message channel open for async response
+      } else if (message.action === 'createAuthorGroup') {
+        this.createAuthorGroup(sender.tab.id, message.paperData, message.authorColor)
+          .then(() => sendResponse({ success: true }))
+          .catch(error => sendResponse({ error: error.message }));
+        return true; // Keep message channel open for async response
       } else if (message.action === 'getStats') {
         this.getStats().then(stats => sendResponse(stats));
         return true; // Keep message channel open for async response
@@ -52,8 +57,8 @@ class ArxivBackgroundManager {
       console.log(`updateTabTitle called for tab ${tabId}: ${newTitle}`);
       console.log(`Paper data:`, paperData);
       
-      // Update the tab title
-      await chrome.tabs.update(tabId, { title: newTitle });
+      // Note: Cannot update tab title via chrome.tabs.update - title is controlled by page
+      // Title should be updated by content script using document.title
       
       // Cache the paper data
       if (paperData && paperData.id) {
@@ -68,9 +73,34 @@ class ArxivBackgroundManager {
         console.log(`No firstAuthor found for tab ${tabId}`);
       }
       
-      console.log(`Successfully updated tab ${tabId} title to: ${newTitle}`);
+      console.log(`Successfully processed tab ${tabId}`);
     } catch (error) {
       console.error('Failed to update tab title:', error);
+      console.error('Error details:', error.message);
+    }
+  }
+
+  async createAuthorGroup(tabId, paperData, authorColor) {
+    try {
+      console.log(`createAuthorGroup called for tab ${tabId}`);
+      console.log(`Paper data:`, paperData);
+      
+      // Cache the paper data
+      if (paperData && paperData.id) {
+        await this.cacheData(paperData);
+      }
+      
+      // Apply author-based grouping and colors
+      if (paperData && paperData.firstAuthor) {
+        console.log(`Attempting to group tab ${tabId} by author: ${paperData.firstAuthor}`);
+        await this.manageAuthorGrouping(tabId, paperData, authorColor);
+      } else {
+        console.log(`No firstAuthor found for tab ${tabId}`);
+      }
+      
+      console.log(`Successfully processed grouping for tab ${tabId}`);
+    } catch (error) {
+      console.error('Failed to create author group:', error);
       console.error('Error details:', error.message);
     }
   }
