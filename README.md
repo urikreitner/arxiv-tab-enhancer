@@ -1,23 +1,48 @@
 # ArXiv Tab Enhancer
 
-A Chrome extension that replaces generic ArXiv tab titles with meaningful paper titles for better tab management.
+🚀 **A powerful Chrome extension that transforms your ArXiv browsing experience**
 
-## Problem
+Turn chaotic numbered tabs into organized, color-coded groups with meaningful titles and intelligent author-based organization.
 
-When browsing ArXiv papers, all tabs show generic titles like "2501.00123" making it impossible to distinguish between different papers. This extension solves that by automatically replacing tab titles with actual paper titles.
+## The Problem We Solve
 
-## Features
+**Before:** Opening multiple ArXiv papers results in a mess of identical-looking tabs showing only paper IDs like "2501.00123", "1706.03762", making it impossible to distinguish between different papers or find specific research.
 
-- **Automatic Title Replacement**: Extracts paper titles from ArXiv pages and updates tab titles
-- **Author-Based Organization**: Shows first author names in tab titles for easy identification
-- **Smart Tab Grouping**: Automatically groups papers by the same author using Chrome's Tab Groups
+**After:** Clean, organized tabs with meaningful titles, author names, categories, and automatic grouping by author with consistent colors.
+
+---
+
+## 🌟 Key Features
+
+### 📝 **Smart Title Enhancement**
+- **Automatic Title Replacement**: Transforms generic IDs into readable paper titles
+- **Author Integration**: Shows first author name in tab title (e.g., "Vaswani: Attention Is All You Need")
+- **Category Prefixes**: Adds field indicators like `[cs]`, `[math]`, `[physics]`
+- **Smart Truncation**: Intelligently shortens long titles to fit browser tabs
+
+### 🎨 **Visual Organization** 
 - **Author-Based Colors**: Consistent color coding for papers by the same author
+- **Smart Tab Grouping**: Automatically groups papers using Chrome's Tab Groups API
+- **Color Persistence**: Same author = same color across browser sessions
+- **Visual Hierarchy**: Easy to spot related work at a glance
+
+### ⭐ **Liked Authors Priority**
+- **Priority Grouping**: Add favorite authors to get priority grouping even when not first author
+- **Flexible Matching**: "Smith" matches "John Smith", "Smith, J.", etc.
+- **Management UI**: Easy add/remove interface with green tags
+- **Smart Detection**: Finds liked authors in any position in author list
+
+### 🔍 **Advanced Search & Navigation**
 - **Author Search**: Search and filter through cached papers by author name
-- **Smart Truncation**: Long titles are intelligently shortened to fit in browser tabs  
-- **Category Prefixes**: Adds subject category indicators (e.g., "[cs]" for computer science papers)
-- **Caching**: Stores paper metadata for faster subsequent loads
-- **Support for Multiple Formats**: Works with both `/abs/` and `/pdf/` ArXiv URLs
-- **Enhanced UI**: Popup with stats, author search, and grouping controls
+- **Quick Navigation**: Click author names to jump to their papers
+- **Paper Statistics**: View cached papers count and active author groups
+- **Memory Management**: Intelligent caching with automatic cleanup
+
+### 🛠 **Technical Excellence**
+- **PDF Page Support**: Works seamlessly on both abstract (`/abs/`) and PDF (`/pdf/`) pages
+- **Automatic Data Fetching**: PDF pages automatically fetch metadata from abstract pages
+- **Cross-Page Caching**: Data persists between abstract and PDF views
+- **Error Handling**: Robust fallbacks for network issues or parsing failures
 
 ## Installation
 
@@ -60,17 +85,42 @@ When browsing ArXiv papers, all tabs show generic titles like "2501.00123" makin
 5. **Background Script**: Manages tab titles, grouping, and caching
 6. **Smart Formatting**: Truncates long titles and adds author names and category prefixes
 
-## Examples
+## 📊 Visual Examples
 
-**Before**: `2501.00123 - arXiv.org`  
-**After**: `[cs] Vaswani: Attention Is All You Need: A Survey of Transformer...`  
-*📁 Grouped in "Vaswani" tab group with blue color*
+### Tab Title Transformation
+```
+BEFORE: 2501.00123 - arXiv.org
+AFTER:  [cs] Vaswani: Attention Is All You Need: A Survey of...
+        └─ Category  └─ Author  └─ Paper Title (truncated)
+```
 
-**Before**: `2412.98765 - arXiv.org`  
-**After**: `[math] Smith: On the Convergence of Stochastic Gradient Descent...`  
-*📁 Grouped in "Smith" tab group with green color*
+### Tab Grouping in Action
+```
+🔵 Vaswani Group (3 papers)
+├── [cs] Vaswani: Attention Is All You Need
+├── [cs] Vaswani: BERT: Pre-training of Deep Bidirectional...
+└── [cs] Vaswani: Language Models are Few-Shot Learners
 
-**Author Search**: Type "Vaswani" in the popup to quickly find and navigate to all papers by that author across your open tabs.
+🟢 Smith Group (2 papers)  
+├── [math] Smith: On the Convergence of Stochastic...
+└── [stat] Smith: Statistical Learning Theory and...
+
+🟡 Individual Papers
+├── [physics] Anderson: Quantum Mechanics and...
+└── [bio] Johnson: CRISPR Gene Editing Applications...
+```
+
+### Liked Authors Priority
+```
+Author List: "Alice Johnson, Bob Smith, Carol Davis"
+Liked Authors: ["Smith"]
+Result: Groups under "Smith" (not "Johnson")
+```
+
+### Search & Navigation
+- **Search "Vaswani"** → Shows all papers + paper count
+- **Click author** → Jumps to first tab by that author
+- **Green tags** → Manage liked authors with × to remove
 
 ## Development
 
@@ -102,16 +152,78 @@ When browsing ArXiv papers, all tabs show generic titles like "2501.00123" makin
 
 ```
 arxiv-tab-enhancer/
-├── manifest.json           # Extension manifest (entry point)
-├── src/
-│   ├── content.js          # Content script for ArXiv pages
-│   ├── background.js       # Background service worker
-│   └── popup.js           # Popup interface logic
-├── popup.html             # Extension popup UI
-├── icons/                 # Extension icons (16px, 48px, 128px)
-├── create_icons.py        # Icon generation script
-└── README.md             # This file
+├── 📄 manifest.json              # Extension manifest (entry point)
+├── 📁 src/                       # Core JavaScript modules
+│   ├── 🎯 content.js            # Content script - extracts paper data from ArXiv pages
+│   ├── ⚙️  background.js         # Background service worker - manages grouping & caching  
+│   └── 🎮 popup.js              # Popup interface - handles UI interactions
+├── 🖼️  popup.html               # Extension popup UI with liked authors management
+├── 📁 icons/                    # Extension icons (multiple sizes)
+│   ├── icon16.png              # 16x16 browser icon
+│   ├── icon48.png              # 48x48 extension page icon  
+│   └── icon128.png             # 128x128 store icon
+├── 🐍 create_icons.py           # Python script for generating icons
+├── 📋 requirements.txt          # Python dependencies (Pillow for icon generation)
+├── 📝 CLAUDE.md                 # Development guidelines and workflow
+├── 🚫 .gitignore                # Git ignore rules (excludes venv/, cache, etc.)
+└── 📖 README.md                 # This comprehensive documentation
 ```
+
+### Architecture Overview
+
+```mermaid
+graph TD
+    A[ArXiv Page] --> B[Content Script]
+    B --> C{Page Type?}
+    C -->|Abstract| D[Extract Title & Authors]
+    C -->|PDF| E[Fetch from Abstract Page]
+    E --> D
+    D --> F[Check Liked Authors]
+    F --> G[Generate Colors]
+    G --> H[Update Document Title]
+    H --> I[Send to Background]
+    I --> J[Background Script]
+    J --> K[Create Tab Groups]
+    J --> L[Cache Data]
+    K --> M[Chrome Tab Groups API]
+    L --> N[Chrome Storage API]
+    
+    P[Popup UI] --> Q[Manage Liked Authors]
+    Q --> N
+    P --> R[Search Authors]
+    R --> N
+    P --> S[Group All Tabs]
+    S --> J
+```
+
+### Key Components Explained
+
+#### 🎯 **Content Script** (`src/content.js`)
+- **Runs on**: All ArXiv pages (`/abs/` and `/pdf/`)
+- **Responsibilities**: 
+  - Extract paper metadata (title, authors, category)
+  - Handle PDF pages by fetching abstract page data
+  - Check liked authors for priority grouping
+  - Generate consistent author colors
+  - Update document title directly
+- **Key Methods**: `extractPaperInfo()`, `getPreferredAuthor()`, `fetchAbstractPageData()`
+
+#### ⚙️ **Background Script** (`src/background.js`)  
+- **Type**: Service Worker (Manifest V3)
+- **Responsibilities**:
+  - Manage Chrome Tab Groups API
+  - Handle author-based grouping logic
+  - Cache paper data in Chrome Storage
+  - Clean up empty groups when tabs close
+- **Key Methods**: `manageAuthorGrouping()`, `createAuthorGroup()`, `handleTabRemoval()`
+
+#### 🎮 **Popup Interface** (`popup.html` + `src/popup.js`)
+- **Responsibilities**:
+  - Manage liked authors list with add/remove UI
+  - Search through cached papers by author
+  - Display extension statistics
+  - Manual tab grouping controls
+- **Key Features**: Green tag UI for liked authors, real-time search, paper counts
 
 ### Testing
 
