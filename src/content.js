@@ -11,6 +11,86 @@ class ArxivTitleExtractor {
     // Run immediately and also observe for dynamic content changes
     this.extractPaperInfo();
     this.observeChanges();
+    
+    // Special handling for PDF pages - they may load content asynchronously
+    if (window.location.href.includes('/pdf/')) {
+      this.setupPdfHandling();
+    }
+  }
+
+  setupPdfHandling() {
+    console.log('Setting up PDF-specific handling...');
+    
+    // Wait for PDF.js to potentially load
+    const checkForPdfJs = () => {
+      if (window.PDFViewerApplication || window.PDFView) {
+        console.log('PDF.js detected, re-applying title...');
+        setTimeout(() => {
+          this.extractPaperInfo();
+        }, 1000);
+      }
+    };
+    
+    // Check immediately and periodically
+    checkForPdfJs();
+    setTimeout(checkForPdfJs, 2000);
+    setTimeout(checkForPdfJs, 5000);
+    
+    // Also listen for various PDF-related events
+    window.addEventListener('load', () => {
+      console.log('Window load event, re-applying title...');
+      // Force re-extraction and title setting
+      setTimeout(() => {
+        console.log('Forcing title reapplication after window load...');
+        this.extractPaperInfo();
+        // Also force title again if we already have the target title
+        if (this.targetTitle) {
+          console.log('Re-applying existing target title:', this.targetTitle);
+          this.setTitleAggressively(this.targetTitle);
+        }
+      }, 500);
+      
+      // Try again after a longer delay for stubborn pages
+      setTimeout(() => {
+        console.log('Secondary title reapplication after window load...');
+        if (this.targetTitle) {
+          console.log('Final re-application of target title:', this.targetTitle);
+          this.setTitleAggressively(this.targetTitle);
+        }
+      }, 2000);
+    });
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('DOM content loaded, re-applying title...');
+      setTimeout(() => this.extractPaperInfo(), 500);
+    });
+    
+    // Listen for any changes to the document title directly
+    let lastTitle = document.title;
+    const titlePoller = setInterval(() => {
+      if (document.title !== lastTitle && document.title !== this.targetTitle) {
+        console.warn(`🚨 EXTERNAL TITLE CHANGE DETECTED!`);
+        console.warn(`From: "${lastTitle}"`);
+        console.warn(`To: "${document.title}"`);
+        if (this.targetTitle) {
+          console.warn(`Immediately restoring to: "${this.targetTitle}"`);
+          this.setTitleAggressively(this.targetTitle);
+          // Try multiple times to ensure it sticks
+          setTimeout(() => this.setTitleAggressively(this.targetTitle), 50);
+          setTimeout(() => this.setTitleAggressively(this.targetTitle), 200);
+          setTimeout(() => this.setTitleAggressively(this.targetTitle), 500);
+        }
+        lastTitle = document.title;
+      } else if (document.title === this.targetTitle) {
+        lastTitle = document.title; // Update lastTitle when our title is active
+      }
+    }, 50); // Check more frequently
+    
+    // Stop polling after 30 seconds
+    setTimeout(() => {
+      clearInterval(titlePoller);
+      console.log('Stopped title polling after 30 seconds');
+    }, 30000);
   }
 
   async extractPaperInfo() {
@@ -265,14 +345,35 @@ class ArxivTitleExtractor {
 
     console.log('Final title:', newTitle);
     
-    // Update the document title directly (this changes the browser tab title)
-    document.title = newTitle;
-    console.log('Updated document title to:', newTitle);
+    // Store the target title for persistence
+    this.targetTitle = newTitle;
+    
+    // Aggressively set the title multiple ways
+    this.setTitleAggressively(newTitle);
+    
+    // Keep checking and re-setting the title
+    this.startTitleWatcher(newTitle);
 
     console.log('Sending message to background script for grouping');
 
-    // Send message to background script to apply colors/grouping (not title update)
+    // Send message to background script for BOTH title update AND grouping
     if (newTitle && chrome.runtime) {
+      // Try background script title update approach
+      console.log('Attempting background script title update...');
+      chrome.runtime.sendMessage({
+        action: 'updateTabTitle',
+        title: newTitle,
+        paperData: paperData,
+        authorColor: authorColor
+      }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.error('Background title update failed:', chrome.runtime.lastError);
+        } else {
+          console.log('Background title update response:', response);
+        }
+      });
+      
+      // Also send for grouping
       chrome.runtime.sendMessage({
         action: 'createAuthorGroup',
         title: newTitle,
@@ -280,13 +381,121 @@ class ArxivTitleExtractor {
         authorColor: authorColor
       }, (response) => {
         if (chrome.runtime.lastError) {
-          console.error('Message sending failed:', chrome.runtime.lastError);
+          console.error('Group creation failed:', chrome.runtime.lastError);
         } else {
-          console.log('Message sent successfully, response:', response);
+          console.log('Group creation response:', response);
         }
       });
     } else {
       console.error('Cannot send message - no title or chrome.runtime unavailable');
+    }
+  }
+
+  setTitleAggressively(newTitle) {
+    console.log('Setting title aggressively to:', newTitle);
+    
+    // Method 1: Direct document.title
+    document.title = newTitle;
+    
+    // Method 2: Try to set via title element if it exists
+    const titleElement = document.querySelector('title');
+    if (titleElement) {
+      titleElement.textContent = newTitle;
+    }
+    
+    // Method 3: Create title element if it doesn't exist
+    if (!document.querySelector('title')) {
+      const titleEl = document.createElement('title');
+      titleEl.textContent = newTitle;
+      document.head.appendChild(titleEl);
+    }
+    
+    console.log('Title set via multiple methods, current document.title:', document.title);
+    
+    // Extra debugging - check all possible title sources
+    console.log('=== TITLE DEBUG INFO ===');
+    console.log('document.title:', JSON.stringify(document.title));
+    console.log('title element textContent:', JSON.stringify(document.querySelector('title')?.textContent));
+    console.log('title element innerHTML:', JSON.stringify(document.querySelector('title')?.innerHTML));
+    console.log('page URL:', window.location.href);
+    console.log('========================');
+  }
+
+  startTitleWatcher(targetTitle) {
+    // Clear any existing watcher
+    if (this.titleWatcher) {
+      clearInterval(this.titleWatcher);
+    }
+    
+    // Set up mutation observer to watch for title changes
+    this.setupTitleMutationObserver(targetTitle);
+    
+    // Check every 200ms for the first 30 seconds (more frequent and longer)
+    let checks = 0;
+    this.titleWatcher = setInterval(() => {
+      checks++;
+      
+      if (document.title !== targetTitle) {
+        console.warn(`Title mismatch detected (check ${checks}). Expected: "${targetTitle}", Got: "${document.title}"`);
+        console.warn('Re-setting title...');
+        this.setTitleAggressively(targetTitle);
+      } else {
+        // Only log every 20th check to reduce noise
+        if (checks % 20 === 0) {
+          console.log(`Title check ${checks}: OK`);
+        }
+      }
+      
+      // Stop checking after 150 attempts (30 seconds)
+      if (checks >= 150) {
+        clearInterval(this.titleWatcher);
+        console.log('Title watcher stopped after 150 checks');
+      }
+    }, 200);
+  }
+
+  setupTitleMutationObserver(targetTitle) {
+    // Watch for changes to the title element
+    const titleElement = document.querySelector('title');
+    if (titleElement) {
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList' || mutation.type === 'characterData') {
+            const currentTitle = document.title;
+            if (currentTitle !== targetTitle) {
+              console.error('🚨 TITLE CHANGED BY EXTERNAL SOURCE!');
+              console.error('Target title:', targetTitle);
+              console.error('New title:', currentTitle);
+              console.error('Mutation:', mutation);
+              console.error('Target element:', mutation.target);
+              
+              // Immediately set it back
+              console.log('Forcing title back to correct value...');
+              this.setTitleAggressively(targetTitle);
+            }
+          }
+        });
+      });
+      
+      observer.observe(titleElement, {
+        childList: true,
+        characterData: true,
+        subtree: true
+      });
+      
+      // Also observe the document head for new title elements
+      const headObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeName === 'TITLE') {
+              console.error('🚨 NEW TITLE ELEMENT ADDED!', node);
+              node.textContent = targetTitle;
+            }
+          });
+        });
+      });
+      
+      headObserver.observe(document.head, { childList: true });
     }
   }
 
